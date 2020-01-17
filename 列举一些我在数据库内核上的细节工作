@@ -1,0 +1,27 @@
+常见Bug修复:
+1\内存没有初始化导师内存非法：constr = (TupleConstr *) MemoryContextAlloc(t_thrd.mem_cxt.cache_mem_cxt,sizeof(TupleConstr));
+修改方法：调用初始化为0的APIconstr = (TupleConstr *) MemoryContextAlloc`Zero`(t_thrd.mem_cxt.cache_mem_cxt, sizeof(TupleConstr));
+
+
+open relation时增加对事务状态的校验
+Assert(!IsAbortedTransactionBlockState());
+
+
+
+
+校验压缩前后数据size是否符合预期：
+Assert(decompressSize == compressSize);
+
+
+清楚重分布期间删表后的残留：
+函数检测到有残留，对这部分调用底层API重新删除
+
+目前pooler和线程池缺少session的定期清理机制导致可能存在session内部的vfd长期无法close.
+事务提交阶段清除session内部的vfd cache规避以上问题. 长期来看还是要引入session的清理机制解决这种问题.
+
+
+手动  closeAllVfds();
+
+
+目前的方案里，所有线程的退出都是一样的条件leftnum==0/hasrollback,io的那个只是让其他线程睡死，并没有退出。如果有意外，目前的写法是有异常的话 所有线程都会退出，除非专门去kill这个线程；其他意外，基本都是主线程遇到的，这时候是应该进程级别的退出
+是不是应该考虑人为特意kill这个线程的情况
